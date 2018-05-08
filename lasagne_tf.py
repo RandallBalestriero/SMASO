@@ -89,7 +89,7 @@ class InputLayer:
 		self.output_shape = input_shape
 
 class DenseLayer:
-	def __init__(self,incoming,n_output,training,bn=0,init_W = tf.contrib.layers.xavier_initializer(uniform=True),init_b = tf.constant_initializer(0.)):
+	def __init__(self,incoming,n_output,training,bn=0,init_W = tf.contrib.layers.xavier_initializer(uniform=True),init_b = tf.constant_initializer(0.),centered=0,ortho=0):
 		print incoming.output_shape
 		if(len(incoming.output_shape)>2):
 			inputf = tf.layers.flatten(incoming.output)
@@ -99,12 +99,16 @@ class DenseLayer:
 			in_dim = incoming.output_shape[1]
                 self.W = tf.Variable(init_W((in_dim,n_output)),name='W_dense',trainable=True)
                 tf.add_to_collection("regularizable",self.W)
+                if(ortho):
+                        W = myortho2(self.W,(in_dim,n_output))
+                else:
+                        W = self.W
 		self.output_shape = (incoming.output_shape[0],n_output)
 		if(init_b=='fixed'):
 			self.b = -tf.reduce_sum(self.W*self.W,axis=0,keep_dims=True)*0.5
 		else:
                        	self.b = tf.Variable(init_b((1,n_output)),name='b_dense',trainable=True)
-		self.output = tf.matmul(inputf,self.W)+self.b
+		self.output = tf.matmul(inputf,W)+self.b
 
 
 
@@ -183,61 +187,24 @@ class NonlinearityLayer:
 		elif(nonlinearity=='abs'):
 			self.output = tf.abs(output)
 		elif(nonlinearity=='swish'):
-			self.eta = tf.Variable(tf.ones(1)*0.5,trainable=False,name='beta')
+			self.eta = tf.Variable(tf.ones((1,1,1,incoming.output_shape[-1]))*0.5,trainable=False,name='beta')
 			tf.add_to_collection('beta',self.eta)
 			self.output= tf.nn.sigmoid(output*tf.nn.softplus(self.eta))*output
 		elif(nonlinearity=='uswish'):
-			self.eta = tf.Variable(tf.ones(1)*0.5,trainable=False,name='beta')
+			self.eta = tf.Variable(tf.ones((1,1,1,incoming.output_shape[-1]))*0.5,trainable=False,name='beta')
 			tf.add_to_collection('beta',self.eta)
-			self.output = tf.nn.sigmoid(tf.stop_gradient(output)*self.eta)*output
+			self.output = tf.nn.sigmoid(tf.stop_gradient(output)*tf.nn.softplus(self.eta))*output
 		elif(nonlinearity=='smooth'):
-                        self.eta = tf.Variable(tf.ones(1)*0.5,trainable=False,name='beta')
+                        self.eta = tf.Variable(tf.ones((1,1,1,incoming.output_shape[-1]))*0.5,trainable=False,name='beta')
                         tf.add_to_collection('beta',self.eta)
-                        self.output = tf.log(1+tf.exp(output*self.eta))/(self.eta+0.0000000001)
-#		if(global_beta):
-#                	self.beta = tf.Variable(tf.zeros(1),trainable=False,name='beta')
-#		else:
-#                        self.beta = tf.Variable(tf.zeros(incoming.output_shape[-1]),trainable=False,name='beta')
-#		if(use_beta):
-#                	tf.add_to_collection('beta',self.beta)
-#		beta  = tf.sigmoid(self.beta)
-#		if(use_beta):
-#			coeff = beta/(1-beta)
-#			if(global_beta):
-#				if(len(incoming.output_shape)>2):
-#					coeff = tf.reshape(coeff,(1,1,1,1))
-#				else:
-#                                        coeff = tf.reshape(coeff,(1,1))
-#			else:
-#                                if(len(incoming.output_shape)>2):
-#                                        coeff = tf.reshape(coeff,(1,1,1,incoming.output_shape[-1]))
-#                                else:
-#                                        coeff = tf.reshape(coeff,(1,incoming.output_shape[-1]))
-#			if(nonlinearity=='relu'):
-#	        	        self.output = tf.nn.sigmoid(incoming.output)*incoming.output
-#			elif(nonlinearity=='lrelu'):
-#				coeff1 = tf.exp(tf.clip_by_value(coeff*0.01*incoming.output,-10,10))
-#				coeff2 = tf.exp(tf.clip_by_value(coeff*incoming.output,-10,10))
-#				mask1  = coeff1/(coeff1+coeff2)
-#				mask2  = coeff2/(coeff1+coeff2)
-#                	        self.output = incoming.output*(mask1*0.01+mask2)
-#			elif(nonlinearity=='abs'):
-#				coeff1 = tf.exp(-coeff*incoming.output)
-#				coeff2 = tf.exp(coeff*incoming.output)
-#                	        self.output = incoming.output*(-coeff1+coeff2)/(coeff1+coeff2)
-#		else:
-#                        if(nonlinearity=='relu'):
-#                                self.output = tf.nn.relu(incoming.output)
-#                        elif(nonlinearity=='lrelu'):
-#                                self.output = tf.nn.leaky_relu(incoming.output)
-#                        elif(nonlinearity=='abs'):
-#                                self.output = tf.nn.softplus(incoming.output)
-
-
-#                self.VQ  = tf.stack([mask1,mask2],axis=2)
-#		self.VQ_shape = tuple(self.output_shape[:2])+tuple([2])+tuple(self.output_shape[2:])
-			
-
+                        self.output = tf.log(1+tf.exp(output*tf.nn.softplus(self.eta)))/tf.nn.softplus(self.eta)
+		elif(nonlinearity=='alt'):
+                        self.eta = tf.Variable(tf.ones((1,1,1,incoming.output_shape[-1]))*0.5,trainable=False,name='beta')
+                        tf.add_to_collection('beta',self.eta)
+                        self.eta2 = tf.Variable(tf.ones((1,1,1,incoming.output_shape[-1]))*0.,trainable=False,name='beta2')
+                        tf.add_to_collection('beta',self.eta)
+                        tf.add_to_collection('beta',self.eta2)
+                        self.output = tf.nn.sigmoid(output*tf.nn.softplus(self.eta))*(tf.nn.sigmoid(self.eta2)+(1-tf.nn.sigmoid(self.eta2))*output)#tf.log(1+tf.exp(output*tf.nn.softplus(self.eta)))/tf.nn.softplus(self.eta)
 
 
 class GlobalPoolLayer:
@@ -290,7 +257,7 @@ class VConv2DLayer:
 
 
 class Conv2DLayer:
-        def __init__(self,incoming,n_filters,filter_shape,test,stride=1,pad='valid',mode='CONSTANT',bn=0,init_W = tf.contrib.layers.xavier_initializer(uniform=True),init_b = tf.constant_initializer(0.),first=False):
+        def __init__(self,incoming,n_filters,filter_shape,test,stride=1,pad='valid',mode='CONSTANT',bn=0,init_W = tf.contrib.layers.xavier_initializer(uniform=True),init_b = tf.constant_initializer(0.),first=False,centered=0,ortho=0):
 		print incoming.output_shape
                 if(pad=='valid' or filter_shape==1):
                         padded_input = incoming.output
@@ -305,7 +272,14 @@ class Conv2DLayer:
                 	padded_input = tf.pad(incoming.output,[[0,0],[p,p],[p,p],[0,0]],mode=mode)
                 	self.output_shape = (incoming.output_shape[0],(incoming.output_shape[1]+filter_shape-1)/stride,(incoming.output_shape[1]+filter_shape-1)/stride,n_filters)
                 self.W      = tf.Variable(init_W((filter_shape,filter_shape,incoming.output_shape[3],n_filters)),name='W_conv2d',trainable=True)
-                output1     = tf.nn.conv2d(padded_input,self.W,strides=[1,stride,stride,1],padding='VALID')
+		if(centered):
+			W = self.W-tf.reduce_sum(self.W,axis=[0,1,2],keep_dims=True)
+		else:
+			W = self.W
+		if(ortho):
+			W = myortho(W,(filter_shape,filter_shape,incoming.output_shape[3],n_filters))
+		self.W_=W
+	        output1     = tf.nn.conv2d(padded_input,W,strides=[1,stride,stride,1],padding='VALID')
                 self.b      = tf.Variable(tf.zeros((1,1,1,n_filters)),trainable=True)#tf.Variable(init_b((1,1,1,n_filters)),name='b_conv',trainable=True)
                 self.output = output1+self.b
                 tf.add_to_collection("regularizable",self.W)

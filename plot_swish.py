@@ -1,6 +1,6 @@
 from pylab import *
 import matplotlib as mpl
-label_size = 15
+label_size = 19
 mpl.rcParams['xtick.labelsize'] = label_size
 mpl.rcParams['ytick.labelsize'] = label_size
 
@@ -83,139 +83,55 @@ def ddlrelu(x,beta):
 
 
 
-x=linspace(-4,4,1000)
+x=linspace(-3,3,1000)
 
-fs = 2.5
+fs = 1.5
 
-fig=figure(figsize=(18,3.3))
+fig=figure(figsize=(18,5))
 
 subplot(131)
-plot(x,swish(x,0.1),'g',linewidth=fs)
-plot(x,swish(x,0.5),'b',linewidth=fs)
-plot(x,swish(x,0.9),'k',linewidth=fs)
-axvline(0,color='k',alpha=0.5)
-axhline(0,color='k',alpha=0.5)
-grid('on')
-legend([r'$\beta=0.1$',r'$\beta=0.5$',r'$\beta=0.9$'],fontsize=20,loc="upper left")
-title('ReLU',fontsize=18)
-subplot(132)
-plot(x,abs(x,0.1),'g',linewidth=fs)
-plot(x,abs(x,0.5),'b',linewidth=fs)
-plot(x,abs(x,0.9),'k',linewidth=fs)
-axvline(0,color='k',alpha=0.5)
-axhline(0,color='k',alpha=0.5)
-grid('on')
-title('Abs. Value',fontsize=18)
+for b in linspace(0.1,0.8,10):
+	plot(x,swish(x,b),color=(1-b,0,b),linewidth=fs)
+        plot(x,smoothrelu(x,1-b),color=(b,0,1-b),linewidth=fs)
 
-#legend([r'$\beta=0.1$',r'$\beta=0.5$',r'$\beta=0.9$'],fontsize=20,bbox_to_anchor=(1,1), loc="upper right",bbox_transform=fig.transFigure, ncol=3)
+plot(x,swish(x,0.5),'--k',linewidth=fs*2)
+plot(x,smoothrelu(x,0.5),'--k',linewidth=fs*2)
+plot(x,x*(x>0),color='k',linewidth=fs*2)
+grid('on')
+xlim([-3,3])
+title('ReLU',fontsize=18)
+
+
+subplot(132)
+for b in linspace(0.1,0.8,10):
+        plot(x,lrelu(x,b),color=(1-b,0,b),linewidth=fs)
+        plot(x,smoothlrelu(x,1-b),color=(b,0,1-b),linewidth=fs)
+
+plot(x,x*(x>0)+0.01*x*(x<=0),color='k',linewidth=fs*2)
+plot(x,lrelu(x,0.5),'--k',linewidth=fs*2)
+plot(x,smoothlrelu(x,0.5),'--k',linewidth=fs*2)
+grid('on')
+xlim([-3,3])
+title('leaky-ReLU',fontsize=18)
+
 
 subplot(133)
-plot(x,lrelu(x,0.1),'g',linewidth=fs)
-plot(x,lrelu(x,0.5),'b',linewidth=fs)
-plot(x,lrelu(x,0.9),'k',linewidth=fs)
-axvline(0,color='k',alpha=0.5)
-axhline(0,color='k',alpha=0.5)
+for b in linspace(0.1,0.8,10):
+        plot(x,abs(x,b),color=(1-b,0,b),linewidth=fs)
+        plot(x,smoothabs(x,1-b),color=(b,0,1-b),linewidth=fs)
+
+plot(x,x*(x>0)-1*x*(x<=0),color='k',linewidth=fs*2)
+plot(x,abs(x,0.5),'--k',linewidth=fs*2)
+plot(x,smoothabs(x,0.5),'--k',linewidth=fs*2)
 grid('on')
-title('leaky-ReLU',fontsize=18)
+xlim([-3,3])
+title('Abs. Value',fontsize=18)
 
 tight_layout()
 
-savefig('plot_swish.png')
-close()
+#show()
 
-figure(figsize=(18,3.3))
-
-subplot(131)
-plot(x,dswish(x,0.1),'g',linewidth=fs)
-plot(x,dswish(x,0.5),'b',linewidth=fs)
-plot(x,dswish(x,0.9),'k',linewidth=fs)
-axvline(0,color='k',alpha=0.5)
-axhline(0,color='k',alpha=0.5)
-grid('on')
-legend([r'$\beta=0.1$',r'$\beta=0.5$',r'$\beta=0.9$'],fontsize=20,loc="upper left")
-title('ReLU',fontsize=18)
-subplot(132)
-plot(x,dabs(x,0.1),'g',linewidth=fs)
-plot(x,dabs(x,0.5),'b',linewidth=fs)
-plot(x,dabs(x,0.9),'k',linewidth=fs)
-axvline(0,color='k',alpha=0.5)
-axhline(0,color='k',alpha=0.5)
-grid('on')
-title('Abs. Value',fontsize=18)
-subplot(133)
-plot(x,dlrelu(x,0.1),'g',linewidth=fs)
-plot(x,dlrelu(x,0.5),'b',linewidth=fs)
-plot(x,dlrelu(x,0.9),'k',linewidth=fs)
-axvline(0,color='k',alpha=0.5)
-axhline(0,color='k',alpha=0.5)
-grid('on')
-title('leaky-ReLU',fontsize=18)
-tight_layout()
-
-savefig('plot_swish_ud.png')
-close()
-
-
-figure(figsize=(18,3.3))
-
-subplot(131)
-plot(x,ddswish(x,0.1),'g',linewidth=fs)
-plot(x,ddswish(x,0.5),'b',linewidth=fs)
-plot(x,ddswish(x,0.9),'k',linewidth=fs)
-axvline(0,color='k',alpha=0.5)
-axhline(0,color='k',alpha=0.5)
-grid('on')
-legend([r'$\beta=0.1$',r'$\beta=0.5$',r'$\beta=0.9$'],fontsize=20,loc="upper left")
-title('ReLU',fontsize=18)
-subplot(132)
-plot(x,ddabs(x,0.1),'g',linewidth=fs)
-plot(x,ddabs(x,0.5),'b',linewidth=fs)
-plot(x,ddabs(x,0.9),'k',linewidth=fs)
-axvline(0,color='k',alpha=0.5)
-axhline(0,color='k',alpha=0.5)
-grid('on')
-title('Abs. Value',fontsize=18)
-subplot(133)
-plot(x,ddlrelu(x,0.1),'g',linewidth=fs)
-plot(x,ddlrelu(x,0.5),'b',linewidth=fs)
-plot(x,ddlrelu(x,0.9),'k',linewidth=fs)
-axvline(0,color='k',alpha=0.5)
-axhline(0,color='k',alpha=0.5)
-grid('on')
-title('leaky-ReLU',fontsize=18)
-tight_layout()
-
-savefig('plot_swish_bd.png')
-close()
-
-figure(figsize=(18,3.3))
-
-subplot(131)
-plot(x,smoothrelu(x,0.1),'g',linewidth=fs)
-plot(x,smoothrelu(x,0.5),'b',linewidth=fs)
-plot(x,smoothrelu(x,0.9),'k',linewidth=fs)
-axvline(0,color='k',alpha=0.5)
-axhline(0,color='k',alpha=0.5)
-grid('on')
-legend([r'$\beta=0.1$',r'$\beta=0.5$',r'$\beta=0.9$'],fontsize=20,loc="upper left")
-title('ReLU',fontsize=18)
-subplot(132)
-plot(x,smoothabs(x,0.1),'g',linewidth=fs)
-plot(x,smoothabs(x,0.5),'b',linewidth=fs)
-plot(x,smoothabs(x,0.9),'k',linewidth=fs)
-axvline(0,color='k',alpha=0.5)
-axhline(0,color='k',alpha=0.5)
-grid('on') 
-title('Abs. Value',fontsize=18)
-subplot(133)
-plot(x,smoothlrelu(x,0.1),'g',linewidth=fs)
-plot(x,smoothlrelu(x,0.5),'b',linewidth=fs)
-plot(x,smoothlrelu(x,0.9),'k',linewidth=fs)
-axvline(0,color='k',alpha=0.5)
-axhline(0,color='k',alpha=0.5)
-grid('on')
-title('leaky-ReLU',fontsize=18)
-tight_layout()
+#tight_layout()
 
 savefig('plot_smooth.png')
 

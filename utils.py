@@ -5,6 +5,41 @@ import glob
 from sklearn.datasets import fetch_mldata
 from sklearn.cross_validation import train_test_split
 
+def myortho(W,shape):
+	n_shape  = (shape[-1],prod(shape[:-1]))
+	filters  = tf.reshape(tf.transpose(W,[3,0,1,2]),n_shape)
+	basis    = tf.expand_dims(filters[0,:],0)#/tf.norm(filters[0,:]),0)
+	for i in range(1,shape[-1]):
+	        coeffs = tf.reduce_sum(basis*tf.expand_dims(filters[i],0),1)/tf.reduce_sum(basis*basis,axis=1)
+	        w      = filters[i] - tf.reduce_sum(tf.expand_dims(coeffs,-1)*basis,0)
+	        basis  = tf.concat([basis, tf.expand_dims(w,0)],axis=0)
+	return tf.transpose(tf.reshape(basis,(shape[-1],shape[0],shape[1],shape[2])),[1,2,3,0])
+
+
+
+
+def myortho3(W,shape):
+	n_shape  = (shape[-1],prod(shape[:-1]))
+	filters  = tf.reshape(tf.transpose(W,[3,0,1,2]),n_shape)
+#	return tf.transpose(tf.reshape(tf.qr(filters,full_matrices=True)[0],(shape[-1],shape[0],shape[1],shape[2])),[1,2,3,0])
+	acc = tf.Variable(tf.zeros(n_shape),trainable=False)
+	basis    = filters*tf.expand_dims(tf.one_hot(0,n_shape[0]),-1)#/tf.norm(filters[0,:]),0),-1)
+	for i in range(1,shape[-1]):
+	        coeffs = tf.reduce_sum(basis*tf.expand_dims(filters[i],0),axis=1)/(tf.reduce_sum(basis*basis,axis=1)+0.0000001)
+	        basis += filters*tf.expand_dims(tf.one_hot(i,n_shape[0]),-1)-tf.expand_dims(tf.tensordot(basis,coeffs,[[0],[0]]),0)*tf.expand_dims(tf.one_hot(i,n_shape[0]),-1)
+	return tf.transpose(tf.reshape(basis,(shape[-1],shape[0],shape[1],shape[2])),[1,2,3,0])
+
+
+
+def myortho2(W,shape):
+        n_shape  = (shape[-1],shape[0])
+        filters  = tf.reshape(tf.transpose(W,[1,0]),n_shape)
+        basis    = tf.expand_dims(filters[0,:],0)#/tf.norm(filters[0,:]),0)
+        for i in range(1,shape[-1]):
+                coeffs = tf.reduce_sum(basis*tf.expand_dims(filters[i],0),1)/tf.reduce_sum(basis*basis,1)
+                w      = filters[i] - tf.reduce_sum(tf.expand_dims(coeffs,-1)*basis,0)
+                basis  = tf.concat([basis, tf.expand_dims(w,0)],axis=0)
+        return tf.transpose(basis,[1,0])
 
 
 

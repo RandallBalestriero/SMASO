@@ -36,20 +36,9 @@ class DNNClassifier(object):
         	        self.prediction,self.layers        = model_class.get_layers(self.x,input_shape,test=self.test_phase)
                         self.templates     = tf.stack([tf.gradients(self.prediction,self.x,tf.one_hot(tf.fill([input_shape[0]],c),self.n_classes))[0] for c in xrange(self.n_classes)])
 			count_number_of_params()
-#			extra_losses       = [] 
-#			ww = tf.get_collection('regularizable')
-#			extra_loss = 0
-#			return_loss = 0
-#			for w in ww[1:]:
-#				extra_loss += tf.reduce_mean(tf.nn.relu(-w))
-#                                return_loss += tf.reduce_sum(tf.nn.relu(-w))
-#			self.extra_loss = extra_loss*self.gamma
-#			self.return_loss = return_loss
+#			ww = tf.reshape(myortho(tf.trainable_variables()[4],(3,3,32,64)),(-1,64))
+			self.W_ = self.layers[1].W_
                         self.crossentropy_loss = tf.reduce_mean(categorical_crossentropy(self.prediction,self.y_))
-#			if(e):
-#				self.loss          = self.crossentropy_loss+extra_loss*self.gamma
-#			else:
-#                                self.loss          = self.crossentropy_loss+tf.stop_gradient(extra_loss*self.gamma)
 			self.loss = self.crossentropy_loss
         	        self.variables     = tf.trainable_variables()
 			if(learn_beta):
@@ -71,6 +60,7 @@ class DNNClassifier(object):
 				here = [random.sample(k,self.batch_size/self.n_classes) for k in indices]
 			here = concatenate(here)
                         self.session.run(self.apply_updates,feed_dict={self.x:X[here],self.y_:y[here],self.test_phase:True,self.learning_rate:float32(self.lr)})#float32(self.lr/sqrt(self.e))})
+#			print self.session.run(self.corr)
 			if(i%update_time==0):
                                 train_loss.append(self.session.run(self.crossentropy_loss,feed_dict={self.x:X[here],self.y_:y[here],self.test_phase:True}))
 #                                train_loss.append(self.session.run([self.return_loss,self.crossentropy_loss],feed_dict={self.x:X[here],self.y_:y[here],self.test_phase:True}))
@@ -93,6 +83,7 @@ class DNNClassifier(object):
 			train_loss.append(self._fit(X,y,indices))
 			# NOW COMPUTE TEST SET ACCURACY
                 	acc1 = 0.0
+			W.append(self.session.run(self.W_))
                 	for j in xrange(n_test):
                 	        acc1+=self.session.run(self.accuracy,feed_dict={self.x:X_test[self.batch_size*j:self.batch_size*(j+1)],
 						self.y_:y_test[self.batch_size*j:self.batch_size*(j+1)],self.test_phase:False})
@@ -107,8 +98,8 @@ class DNNClassifier(object):
 				print train_accu[-1]
                 	print 'test accu',test_loss[-1]
 		if(return_train_accu):
-	                return concatenate(train_loss),train_accu,test_loss
-        	return concatenate(train_loss),test_loss
+	                return concatenate(train_loss),train_accu,test_loss,W
+        	return concatenate(train_loss),test_loss,W
 	def predict(self,X):
 		n = X.shape[0]/self.batch_size
 		preds = []
@@ -129,9 +120,11 @@ class DNNClassifier(object):
 
 
 class largeCNN:
-        def __init__(self,bn=1,n_classes=10,global_beta=1,pool_type='BETA',init_W = tf.contrib.layers.xavier_initializer(uniform=True),init_b = tf.constant_initializer(0.),use_beta=1,nonlinearity=tf.nn.relu):
+        def __init__(self,bn=1,n_classes=10,global_beta=1,pool_type='BETA',init_W = tf.contrib.layers.xavier_initializer(uniform=True),init_b = tf.constant_initializer(0.),use_beta=1,nonlinearity=tf.nn.relu,centered=0,ortho=0):
                 self.nonlinearity = nonlinearity
+		self.ortho = ortho
                 self.bn          = bn
+		self.centered=0
                 self.n_classes   = n_classes
                 self.global_beta = global_beta
                 self.pool_type   = pool_type
@@ -141,37 +134,39 @@ class largeCNN:
                 self.init_b = init_b
         def get_layers(self,input_variable,input_shape,test):
                 layers = [InputLayer(input_shape,input_variable)]
-                layers.append(Conv2DLayer(layers[-1],96,3,pad='same',test=test,bn=self.bn,first=True))
+                layers.append(Conv2DLayer(layers[-1],64,5,pad='same',test=test,bn=self.bn,first=True,centered=self.centered,ortho=self.ortho))
 		layers.append(NonlinearityLayer(layers[-1],nonlinearity=self.nonlinearity,use_beta=self.use_beta,global_beta=self.global_beta,training=test,bn=self.bn))
-                layers.append(Conv2DLayer(layers[-1],96,3,pad='full',test=test,bn=self.bn))
+                layers.append(Conv2DLayer(layers[-1],96,3,pad='full',test=test,bn=self.bn,centered=self.centered,ortho=self.ortho))
                 layers.append(NonlinearityLayer(layers[-1],nonlinearity=self.nonlinearity,use_beta=self.use_beta,global_beta=self.global_beta,training=test,bn=self.bn))
-                layers.append(Conv2DLayer(layers[-1],96,3,pad='full',test=test,bn=self.bn))
-                layers.append(NonlinearityLayer(layers[-1],nonlinearity=self.nonlinearity,use_beta=self.use_beta,global_beta=self.global_beta,training=test,bn=self.bn))
-                layers.append(Pool2DLayer(layers[-1],2,pool_type=self.pool_type))
-                layers.append(Conv2DLayer(layers[-1],192,3,test=test,bn=self.bn))
-                layers.append(NonlinearityLayer(layers[-1],nonlinearity=self.nonlinearity,use_beta=self.use_beta,global_beta=self.global_beta,training=test,bn=self.bn))
-                layers.append(Conv2DLayer(layers[-1],192,3,pad='full',test=test,bn=self.bn))
-                layers.append(NonlinearityLayer(layers[-1],nonlinearity=self.nonlinearity,use_beta=self.use_beta,global_beta=self.global_beta,training=test,bn=self.bn))
-                layers.append(Conv2DLayer(layers[-1],192,3,test=test,bn=self.bn))
+                layers.append(Conv2DLayer(layers[-1],96,3,pad='full',test=test,bn=self.bn,centered=self.centered,ortho=self.ortho))
                 layers.append(NonlinearityLayer(layers[-1],nonlinearity=self.nonlinearity,use_beta=self.use_beta,global_beta=self.global_beta,training=test,bn=self.bn))
                 layers.append(Pool2DLayer(layers[-1],2,pool_type=self.pool_type))
-                layers.append(Conv2DLayer(layers[-1],192,3,test=test,bn=self.bn))
+                layers.append(Conv2DLayer(layers[-1],192,3,test=test,bn=self.bn,centered=self.centered,ortho=self.ortho))
                 layers.append(NonlinearityLayer(layers[-1],nonlinearity=self.nonlinearity,use_beta=self.use_beta,global_beta=self.global_beta,training=test,bn=self.bn))
-                layers.append(Conv2DLayer(layers[-1],192,1,test=test))
+                layers.append(Conv2DLayer(layers[-1],192,3,pad='full',test=test,bn=self.bn,ortho=self.ortho))
+                layers.append(NonlinearityLayer(layers[-1],nonlinearity=self.nonlinearity,use_beta=self.use_beta,global_beta=self.global_beta,training=test,bn=self.bn))
+                layers.append(Conv2DLayer(layers[-1],192,3,test=test,bn=self.bn,centered=self.centered,ortho=self.ortho))
+                layers.append(NonlinearityLayer(layers[-1],nonlinearity=self.nonlinearity,use_beta=self.use_beta,global_beta=self.global_beta,training=test,bn=self.bn))
+                layers.append(Pool2DLayer(layers[-1],2,pool_type=self.pool_type))
+                layers.append(Conv2DLayer(layers[-1],192,3,test=test,bn=self.bn,centered=self.centered,ortho=self.ortho))
+                layers.append(NonlinearityLayer(layers[-1],nonlinearity=self.nonlinearity,use_beta=self.use_beta,global_beta=self.global_beta,training=test,bn=self.bn))
+                layers.append(Conv2DLayer(layers[-1],192,1,test=test,centered=self.centered,ortho=self.ortho))
                 layers.append(NonlinearityLayer(layers[-1],nonlinearity=self.nonlinearity,use_beta=self.use_beta,global_beta=self.global_beta,training=test,bn=self.bn))
                 layers.append(GlobalPoolLayer(layers[-1]))
-                layers.append(DenseLayer(layers[-1],self.n_classes,training=test,bn=0))
+                layers.append(DenseLayer(layers[-1],self.n_classes,training=test,bn=0,ortho=0))
 		self.layers = layers
-                return self.layers[-1].output,[]
+                return self.layers[-1].output,self.layers
 
 
 
 class DenseCNN:
-        def __init__(self,bn=1,n_classes=10,global_beta=1,pool_type='BETA',init_W = tf.contrib.layers.xavier_initializer(uniform=True),init_b = tf.constant_initializer(0.),use_beta=1,nonlinearity=tf.nn.relu):
+        def __init__(self,bn=1,n_classes=10,global_beta=1,pool_type='BETA',init_W = tf.contrib.layers.xavier_initializer(uniform=True),init_b = tf.constant_initializer(0.),use_beta=1,nonlinearity=tf.nn.relu,centered=0,ortho=0):
                 self.nonlinearity = nonlinearity
                 self.bn          = bn
+		self.centered=centered
                 self.n_classes   = n_classes
 		self.global_beta = global_beta
+		self.ortho = ortho
 		self.pool_type   = pool_type
 		self.layers = 0
 		self.use_beta    = use_beta
@@ -181,20 +176,21 @@ class DenseCNN:
 		if(self.layers==0):
 			extra_layers = []
 	                layers = [InputLayer(input_shape,input_variable)]
-	                layers.append(Conv2DLayer(layers[-1],32,3,test=test,bn=self.bn,init_W=self.init_W,init_b=self.init_b,first=True))
+	                layers.append(Conv2DLayer(layers[-1],32,5,test=test,bn=self.bn,init_W=self.init_W,init_b=self.init_b,first=True,centered=self.centered,ortho=self.ortho))
                         layers.append(NonlinearityLayer(layers[-1],nonlinearity=self.nonlinearity,use_beta=self.use_beta,global_beta=self.global_beta,training=test,bn=self.bn))
 	                layers.append(Pool2DLayer(layers[-1],2,pool_type=self.pool_type))
-	                layers.append(Conv2DLayer(layers[-1],64,3,test=test,bn=self.bn,init_W=self.init_W,init_b=self.init_b))
+	                layers.append(Conv2DLayer(layers[-1],64,3,test=test,bn=self.bn,init_W=self.init_W,init_b=self.init_b,centered=self.centered,ortho=self.ortho))
                         layers.append(NonlinearityLayer(layers[-1],nonlinearity=self.nonlinearity,use_beta=self.use_beta,global_beta=self.global_beta,training=test,bn=self.bn))
 	                layers.append(Pool2DLayer(layers[-1],2,pool_type=self.pool_type))
-	                layers.append(Conv2DLayer(layers[-1],128,3,test=test,bn=self.bn,init_W=self.init_W,init_b=self.init_b))
+	                layers.append(Conv2DLayer(layers[-1],128,3,test=test,bn=self.bn,init_W=self.init_W,init_b=self.init_b,centered=self.centered,ortho=self.ortho))
                         layers.append(NonlinearityLayer(layers[-1],nonlinearity=self.nonlinearity,use_beta=self.use_beta,global_beta=self.global_beta,training=test,bn=self.bn))
-                        layers.append(DenseLayer(layers[-1],self.n_classes,training=test,bn=0,init_W=self.init_W,init_b=self.init_b))
+			layers.append(GlobalPoolLayer(layers[-1]))
+                        layers.append(DenseLayer(layers[-1],self.n_classes,training=test,bn=0,init_W=self.init_W,init_b=self.init_b,ortho=0))
 			self.layers = layers
 			self.extra_layers = layers[1::2]
-	                return self.layers[-1].output,self.extra_layers
+	                return self.layers[-1].output,self.layers
 		else:
-			return self.layers[-1],self.extra_layers
+			return self.layers[-1].output,self.layers
 
 
 
