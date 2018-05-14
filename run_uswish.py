@@ -8,29 +8,27 @@ execfile('models.py')
 execfile('lasagne_tf.py')
 
 DATASET    = sys.argv[-2]
-#learn_beta = int(sys.argv[-2])
 bn         = 1#int(sys.argv[-2])
-#lr         = 0.001#float(sys.argv[-3])
-learn_beta=1
+learn_beta = 1
 
 
 models = [DenseCNN,largeCNN]
 models_names = ['SmallCNN','LargeCNN'] 
 
-if(int(sys.argv[-1])==0):
-	nite = 10
-else:
-        nite = 5
+start = int(sys.argv[-3])
 
-ne=150
+ne=100
 
 for nonlin in ['swish','relu']:
 	model = models[int(sys.argv[-1])]
 	model_name = models_names[int(sys.argv[-1])]#for model,model_name in zip([DenseCNN,largeCNN],['SmallCNN','LargeCNN']):
 	data = dict()
-	for k in xrange(nite):
+	for k in xrange(start,start+5):
 		if(1):#for bn in [1,0]:#if(1):#for use_beta in [0,1]:
-			lrs= [0.005,0.001,0.0002]
+			if(int(sys.argv[-1])==0):
+				lrs= [0.005,0.001,0.0002]
+			else:
+                                lrs= [0.001,0.0002]
                         for lr in lrs:
 		                name   = 'new'+DATASET+'_'+model_name+'_lr'+str(lr)+'_'+nonlin+'_ortho'
 				x_train,x_test,y_train,y_test,c,n_epochs,input_shape=load_utility(DATASET)
