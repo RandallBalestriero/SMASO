@@ -272,8 +272,11 @@ class Conv2DLayer:
                 	padded_input = tf.pad(incoming.output,[[0,0],[p,p],[p,p],[0,0]],mode=mode)
                 	self.output_shape = (incoming.output_shape[0],(incoming.output_shape[1]+filter_shape-1)/stride,(incoming.output_shape[1]+filter_shape-1)/stride,n_filters)
                 self.W      = tf.Variable(init_W((filter_shape,filter_shape,incoming.output_shape[3],n_filters)),name='W_conv2d',trainable=True)
+		apodization = reshape(hamming(filter_shape),(-1,1))*reshape(hamming(filter_shape),(1,-1))
+		apodization/= apodization.sum()
+		apodization = reshape(apodization,(filter_shape,filter_shape,1,1))
 		if(centered):
-			W = self.W-tf.reduce_sum(self.W,axis=[0,1,2],keep_dims=True)
+			W = self.W*apodization-tf.reduce_sum(self.W*apodization,axis=[0,1,2],keep_dims=True)
 		else:
 			W = self.W
 		if(ortho):
