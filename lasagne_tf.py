@@ -272,19 +272,18 @@ class Conv2DLayer:
                 	padded_input = tf.pad(incoming.output,[[0,0],[p,p],[p,p],[0,0]],mode=mode)
                 	self.output_shape = (incoming.output_shape[0],(incoming.output_shape[1]+filter_shape-1)/stride,(incoming.output_shape[1]+filter_shape-1)/stride,n_filters)
                 self.W      = tf.Variable(init_W((filter_shape,filter_shape,incoming.output_shape[3],n_filters)),name='W_conv2d',trainable=True)
-		apodization = reshape(hamming(filter_shape),(-1,1))*reshape(hamming(filter_shape),(1,-1))
+		apodization = reshape(hamming(filter_shape),(-1,1,1,1))*reshape(hamming(filter_shape),(1,-1,1,1))
 		apodization/= apodization.sum()
-		apodization = reshape(apodization,(filter_shape,filter_shape,1,1))
 		if(centered):
-			W = self.W*apodization-tf.reduce_sum(self.W*apodization,axis=[0,1,2],keep_dims=True)
+			W = self.W*apodization-tf.reduce_mean(self.W*apodization,axis=[0,1,2],keep_dims=True)
 		else:
 			W = self.W
 		if(ortho):
 			W = myortho(W,(filter_shape,filter_shape,incoming.output_shape[3],n_filters))
 		self.W_=W
 	        output1     = tf.nn.conv2d(padded_input,W,strides=[1,stride,stride,1],padding='VALID')
-                self.b      = tf.Variable(tf.zeros((1,1,1,n_filters)),trainable=True)#tf.Variable(init_b((1,1,1,n_filters)),name='b_conv',trainable=True)
-                self.output = output1+self.b
+#                self.b      = tf.Variable(tf.zeros((1,1,1,n_filters)),trainable=True)#tf.Variable(init_b((1,1,1,n_filters)),name='b_conv',trainable=True)
+                self.output = output1#+self.b
                 tf.add_to_collection("regularizable",self.W)
                 print self.output_shape
 

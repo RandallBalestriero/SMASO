@@ -7,8 +7,8 @@ label_size = 15
 mpl.rcParams['xtick.labelsize'] = label_size
 mpl.rcParams['ytick.labelsize'] = label_size
 
-files    = glob.glob('/mnt/project2/rb42Data/SMASO/*swish_ortho*.pkl')
-datasets = unique([f.split('_')[0].split('/')[-1] for f in files])
+files    = glob.glob('/mnt/project2/rb42Data/SMASO/new*swish_ortho*.pkl')
+datasets = unique([f.split('_')[0].split('/')[-1][3:] for f in files])
 
 print "files",files
 print "datasets",datasets
@@ -81,21 +81,21 @@ def plotW(w,m,n):
 
 fss = 18
 for datas in datasets:
-	files  = glob.glob('/mnt/project2/rb42Data/SMASO/'+datas+'*swish_ortho*.pkl')
+	files  = glob.glob('/mnt/project2/rb42Data/SMASO/new'+datas+'*swish_ortho*.pkl')
 	models = unique([f.split('_')[1] for f in files])
 	print "models",models
 	for m in models:
 		print "MODEL:",m
-	        files_m       = glob.glob('/mnt/project2/rb42Data/SMASO/'+datas+'_'+m+'*swish_ortho*.pkl')
+	        files_m       = glob.glob('/mnt/project2/rb42Data/SMASO/new'+datas+'_'+m+'*swish_ortho*.pkl')
 		print files_m
 		learning_rate = unique([f.split('_')[2] for f in files_m])
 		for lr in learning_rate:
 			print "LEARNING RATE",lr
-		        files_m_lr  = glob.glob('/mnt/project2/rb42Data/SMASO/'+datas+'_'+m+'_'+lr+'*swish_ortho*.pkl')
+		        files_m_lr  = glob.glob('/mnt/project2/rb42Data/SMASO/new'+datas+'_'+m+'_'+lr+'*swish_ortho*.pkl')
 			bns    = unique([f.split('_')[3] for f in files_m_lr])
 			print files_m_lr
 			if(1):
-	                        files_m_lr_bn = glob.glob('/mnt/project2/rb42Data/SMASO/'+datas+'_'+m+'_'+lr+'*swish_ortho*.pkl')
+	                        files_m_lr_bn = glob.glob('/mnt/project2/rb42Data/SMASO/new'+datas+'_'+m+'_'+lr+'*swish_ortho*.pkl')
 		                data      = formatting(files_m_lr_bn)
 				train_loss0,train_accu0,test_accu0,temp0,preds0,W0 = data[0]
                                 train_loss1,train_accu1,test_accu1,temp1,preds1,W1 = data[1]
